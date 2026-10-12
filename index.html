@@ -56,6 +56,11 @@ function weightFor(z) {
   if (z >= 17) return WEIGHT[17];
   return WEIGHT[z];
 }
+// 国道・都道府県道の上の規制 (tools/gsiroad.py で road: 'major' を付けたもの) は太くする
+var MAJOR_SCALE = 1.5;
+function scaleOf(f) {
+  return f.properties.road === 'major' ? MAJOR_SCALE : 1;
+}
 function opacityFor(z) {
   return z <= 13 ? 0.5 : 0.8;
 }
@@ -70,7 +75,7 @@ var counts = {};
 var layer = L.geoJSON(d, {
   style: function (f) {
     var s = STYLE[f.properties.cls] || { color: '#000' };
-    return { color: s.color, weight: weightFor(map.getZoom()), opacity: opacityFor(map.getZoom()), fillOpacity: 0.2 };
+    return { color: s.color, weight: weightFor(map.getZoom()) * scaleOf(f), opacity: opacityFor(map.getZoom()), fillOpacity: 0.2 };
   },
   pointToLayer: function (f, ll) {
     var s = STYLE[f.properties.cls] || { color: '#000' };
@@ -88,7 +93,7 @@ var layer = L.geoJSON(d, {
 map.on('zoomend', function () {
   var z = map.getZoom();
   var w = weightFor(z), o = opacityFor(z);
-  layer.eachLayer(function (l) { l.setStyle({ weight: w, opacity: o }); });
+  layer.eachLayer(function (l) { l.setStyle({ weight: w * scaleOf(l.feature), opacity: o }); });
   boundary.setStyle({ weight: w * 1.5 });
 });
 
@@ -113,6 +118,8 @@ legend.onAdd = function () {
   h += '<div class="note">出典: 「交通規制情報」(公益財団法人日本道路交通情報センター) ' +
        '(<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">https://www.jartic.or.jp/service/opendata/</a>) ' +
        'を加工して作成。元データ: ' + d.source + '</div>';
+  h += '<div class="note">国道・都道府県道の上の規制は線を太く表示。道路の種別は国土地理院 ' +
+       '<a href="https://maps.gsi.go.jp/development/vt.html" target="_blank">ベクトルタイル</a> の道路中心線と位置を照らし合わせて判定 (誤りを含む場合があります)。</div>';
   h += '<div><span class="sw" style="background:' + BOUNDARY_COLOR + '"></span>市町村の境界</div>';
   h += '<div class="note">境界: ' + BOUNDARY_DATA.properties.source + ' (' + BOUNDARY_DATA.properties.issued + ' 時点)。' +
        '<a href="https://geoshape.ex.nii.ac.jp/city/" target="_blank">歴史的行政区域データセットβ版 (geoshape)</a>、CC BY-SA 4.0</div>';
