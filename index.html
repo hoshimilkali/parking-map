@@ -45,9 +45,9 @@ var dlat = d.radiusKm / 111, dlon = d.radiusKm / (111 * Math.cos(d.center[0] * M
 L.rectangle([[d.center[0] - dlat, d.center[1] - dlon], [d.center[0] + dlat, d.center[1] + dlon]],
   { color: '#888', weight: 1, dashArray: '4 4', fill: false, interactive: false }).addTo(map);
 
-// 縮尺に合わせた線の太さ (ピクセル)。ズーム 12 以下で 2、16 以上で 6
+// 縮尺に合わせた線の太さ (ピクセル)。ズーム 12 以下で 1.6、16 以上で 4.8 (当初の 80%)
 function weightFor(z) {
-  return Math.max(2, Math.min(6, z - 10));
+  return 0.8 * Math.max(2, Math.min(6, z - 10));
 }
 
 var counts = {};
