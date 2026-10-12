@@ -21,6 +21,7 @@
 <div id="map"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data.js"></script>
+<script src="boundary.js"></script>
 <script>
 // 分類ごとの色と表示名
 var STYLE = {
@@ -32,8 +33,10 @@ var STYLE = {
 };
 
 var d = PARKING_DATA;
-// 線が数千本になるので SVG ではなく Canvas で描画する。初期の縮尺は抽出範囲の広さで決める
-var map = L.map('map', { preferCanvas: true }).setView(d.center, d.radiusKm > 5 ? 12 : 15);
+// 線が数千本になるので SVG ではなく Canvas で描画する
+var map = L.map('map', { preferCanvas: true });
+// 初期表示は仙台市泉区の全域 (geoshape の泉区の範囲。緯度 38.2873-38.4340、経度 140.6878-140.9324)
+map.fitBounds([[38.2873, 140.6878], [38.4340, 140.9324]]);
 // 背景は地理院タイル (淡色地図)。OSM のタイルは file:// で開くと Referer が無く 403 になるため使わない
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
   minZoom: 5, maxZoom: 18,
@@ -56,6 +59,12 @@ function weightFor(z) {
 function opacityFor(z) {
   return z <= 13 ? 0.5 : 0.8;
 }
+
+// 市町村の境界 (海岸線・県境を含む)。規制の線より先に追加して下に描く
+var BOUNDARY_COLOR = '#9030c0';
+var boundary = L.geoJSON(BOUNDARY_DATA, {
+  style: { color: BOUNDARY_COLOR, weight: weightFor(map.getZoom()) * 1.5, opacity: 0.6 }, interactive: false
+}).addTo(map);
 
 var counts = {};
 var layer = L.geoJSON(d, {
@@ -80,11 +89,13 @@ map.on('zoomend', function () {
   var z = map.getZoom();
   var w = weightFor(z), o = opacityFor(z);
   layer.eachLayer(function (l) { l.setStyle({ weight: w, opacity: o }); });
+  boundary.setStyle({ weight: w * 1.5 });
 });
 
 // 出典は凡例をたたんでも見えるよう右下の出典欄にも出す
 map.attributionControl.addAttribution(
-  '<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">JARTIC 交通規制情報</a>を加工して作成');
+  '<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">JARTIC 交通規制情報</a>を加工して作成' +
+  '、<a href="https://geoshape.ex.nii.ac.jp/city/" target="_blank">geoshape 市区町村境界</a> (CC BY-SA 4.0)');
 
 // 凡例。見出しをタップで開閉。画面幅 600px 未満では最初はたたむ
 var legend = L.control({ position: 'topright' });
@@ -102,6 +113,9 @@ legend.onAdd = function () {
   h += '<div class="note">出典: 「交通規制情報」(公益財団法人日本道路交通情報センター) ' +
        '(<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">https://www.jartic.or.jp/service/opendata/</a>) ' +
        'を加工して作成。元データ: ' + d.source + '</div>';
+  h += '<div><span class="sw" style="background:' + BOUNDARY_COLOR + '"></span>市町村の境界</div>';
+  h += '<div class="note">境界: ' + BOUNDARY_DATA.properties.source + ' (' + BOUNDARY_DATA.properties.issued + ' 時点)。' +
+       '<a href="https://geoshape.ex.nii.ac.jp/city/" target="_blank">歴史的行政区域データセットβ版 (geoshape)</a>、CC BY-SA 4.0</div>';
   div.innerHTML = h;
   L.DomEvent.disableClickPropagation(div);
   return div;
