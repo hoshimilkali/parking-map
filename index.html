@@ -97,6 +97,15 @@ map.on('zoomend', function () {
   boundary.setStyle({ weight: w * 1.5 });
 });
 
+// 右クリック (スマートフォンでは長押し) した地点を Google マップ・ストリートビューで開くメニュー
+map.on('contextmenu', function (e) {
+  var ll = e.latlng.lat.toFixed(6) + ',' + e.latlng.lng.toFixed(6);
+  L.popup().setLatLng(e.latlng).setContent(
+    '<div><a href="https://www.google.com/maps/search/?api=1&query=' + ll + '" target="_blank">Google マップ</a></div>' +
+    '<div><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + ll + '" target="_blank">Google ストリートビュー</a></div>' +
+    '<div class="note">' + ll + '</div>').openOn(map);
+});
+
 // 出典は凡例をたたんでも見えるよう右下の出典欄にも出す
 map.attributionControl.addAttribution(
   '<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">JARTIC 交通規制情報</a>を加工して作成' +
