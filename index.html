@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>駐車規制マップ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  html, body { margin: 0; height: 100%; font-family: sans-serif; background: #fff; }
+  #map { position: absolute; inset: 0; }
+  .panel { background: #fff; padding: 8px 10px; border-radius: 4px;
+           box-shadow: 0 1px 4px rgba(0,0,0,.3); font-size: 13px; line-height: 1.6; max-width: 260px; }
+  .panel h1 { font-size: 14px; margin: 0 0 4px; }
+  .sw { display: inline-block; width: 22px; height: 4px; vertical-align: middle; margin-right: 6px; }
+  .note { font-size: 11px; color: #555; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script>
+// 分類ごとの色と表示名
+var STYLE = {
+  noparking:  { color: '#e02020', label: '駐車禁止' },
+  nostopping: { color: '#7a0010', label: '駐停車禁止' },
+  parkingok:  { color: '#1e64dc', label: '駐車可' },
+  timelimit:  { color: '#14a050', label: '時間制限駐車区間' },
+  method:     { color: '#e08a00', label: '駐車方法の指定' }
+};
+
+var d = PARKING_DATA;
+// 線が数千本になるので SVG ではなく Canvas で描画する。初期の縮尺は抽出範囲の広さで決める
+var map = L.map('map', { preferCanvas: true }).setView(d.center, d.radiusKm > 5 ? 12 : 15);
+// 背景は地理院タイル (淡色地図)。OSM のタイルは file:// で開くと Referer が無く 403 になるため使わない
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+  minZoom: 5, maxZoom: 18,
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
+}).addTo(map);
+
+// 抽出範囲の枠
+var dlat = d.radiusKm / 111, dlon = d.radiusKm / (111 * Math.cos(d.center[0] * Math.PI / 180));
+L.rectangle([[d.center[0] - dlat, d.center[1] - dlon], [d.center[0] + dlat, d.center[1] + dlon]],
+  { color: '#888', weight: 1, dashArray: '4 4', fill: false, interactive: false }).addTo(map);
+
+// 縮尺に合わせた線の太さ (ピクセル)。ズーム 12 以下で 2、16 以上で 6
+function weightFor(z) {
+  return Math.max(2, Math.min(6, z - 10));
+}
+
+var counts = {};
+var layer = L.geoJSON(d, {
+  style: function (f) {
+    var s = STYLE[f.properties.cls] || { color: '#000' };
+    return { color: s.color, weight: weightFor(map.getZoom()), opacity: 0.8, fillOpacity: 0.2 };
+  },
+  pointToLayer: function (f, ll) {
+    var s = STYLE[f.properties.cls] || { color: '#000' };
+    return L.circleMarker(ll, { radius: 6, color: s.color });
+  },
+  onEachFeature: function (f, l) {
+    var p = f.properties;
+    counts[p.cls] = (counts[p.cls] || 0) + 1;
+    l.bindPopup('<b>' + p.name + '</b><br>規制時間: ' + (p.times || '記載なし') +
+      '<br>決定日: ' + p.start + '<br>データ更新日: ' + p.update +
+      '<br><small>ユニークキー: ' + p.key + '</small>');
+  }
+}).addTo(map);
+
+map.on('zoomend', function () {
+  var w = weightFor(map.getZoom());
+  layer.eachLayer(function (l) { l.setStyle({ weight: w }); });
+});
+
+// 凡例
+var legend = L.control({ position: 'topright' });
+legend.onAdd = function () {
+  var div = L.DomUtil.create('div', 'panel');
+  var h = '<h1>' + (d.area || '駐車規制') + '</h1>';
+  for (var k in STYLE) {
+    if (!counts[k]) continue;
+    h += '<div><span class="sw" style="background:' + STYLE[k].color + '"></span>' +
+         STYLE[k].label + ' (' + counts[k] + ')</div>';
+  }
+  h += '<div class="note">色の無い道路は「規制データ無し」で、駐車可という意味ではありません。' +
+       '交差点付近など法定の駐車禁止場所は含まれていない可能性があります。</div>';
+  h += '<div class="note">出典: 「交通規制情報」(公益財団法人日本道路交通情報センター) ' +
+       '(<a href="https://www.jartic.or.jp/service/opendata/" target="_blank">https://www.jartic.or.jp/service/opendata/</a>) ' +
+       'を加工して作成。元データ: ' + d.source + '</div>';
+  div.innerHTML = h;
+  L.DomEvent.disableClickPropagation(div);
+  return div;
+};
+legend.addTo(map);
+</script>
+</body>
+</html>
