@@ -102,7 +102,7 @@ map.on('contextmenu', function (e) {
   var ll = e.latlng.lat.toFixed(6) + ',' + e.latlng.lng.toFixed(6);
   L.popup().setLatLng(e.latlng).setContent(
     '<div><a href="https://www.google.com/maps/search/?api=1&query=' + ll + '" target="_blank">Google マップ</a></div>' +
-    '<div><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + ll + '" target="_blank">Google ストリートビュー</a></div>' +
+    '<div><a href="https://www.google.com/maps?layer=c&cbll=' + ll + '" target="_blank">Google ストリートビュー</a></div>' +
     '<div class="note">' + ll + '</div>').openOn(map);
 });
 
